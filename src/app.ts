@@ -1,16 +1,31 @@
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
+import "reflect-metadata";
+import "express-async-errors";
+import express, { Express } from "express";
+import cors from "cors";
 
-dotenv.config();
+import { loadEnv, connectDb, disconnectDB } from "@/config";
+
+loadEnv();
+
+import { handleApplicationErrors } from "@/middlewares";
+import { userRouter, authRouter } from "@/routers";
 
 const app = express();
-const PORT = process.env.PORT || 4000;
+app
+  .use(cors())
+  .use(express.json())
+  .get("/health", (_req, res) => res.send("OK!"))
+  .use("/user", userRouter)
+  .use("/auth", authRouter)
+  .use(handleApplicationErrors);
 
-app.use(cors());
-app.use(express.json());
+export function init(): Promise<Express> {
+  connectDb();
+  return Promise.resolve(app);
+}
 
+export async function close(): Promise<void> {
+  await disconnectDB();
+}
 
-app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
-});
+export default app;
