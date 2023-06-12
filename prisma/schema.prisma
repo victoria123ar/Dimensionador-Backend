@@ -23,3 +23,45 @@ model Session {
   token     String
   createdAt DateTime @default(now())
 }
+
+model SpecificMassLiquidComponent {
+	id        Int      @id @default(autoincrement())
+  	name      String   @unique @db.VarChar(255)
+	molecularMass      Decimal
+	A                  Decimal
+	B                  Decimal
+	C                  Decimal
+	D                  Decimal
+	E                  Decimal
+}
+
+model SpecificMassVaporComponent {
+	id        Int      @id @default(autoincrement())
+  	name      String   @unique @db.VarChar(255)
+	molecularMass      Decimal
+	w                  Decimal
+	Pc                 Decimal
+	Tc                 Decimal
+}
+
+model VaporComponentViscosity {
+	id        Int      @id @default(autoincrement())
+  	name      String   @unique @db.VarChar(255)
+	molecularMass      Decimal
+	A                  Decimal
+	B                  Decimal
+	C                  Decimal
+	D                  Decimal
+	E                  Decimal
+}
+
+model ViscosityLiquidComponent {
+	id        Int      @id @default(autoincrement())
+  	name      String   @unique @db.VarChar(255)
+	molecularMass      Decimal
+	A                  Decimal
+	B                  Decimal
+	C                  Decimal
+	D                  Decimal
+	E                  Decimal
+}

@@ -8,7 +8,7 @@
         "prebuild": "rm -rf dist",
         "build": "ttsc -p tsconfig.build.json",
         "prepare": "husky install .husky -t .git",
-        "start": "node dist/server.js",
+        "start": "nodemon dist/server.js",
         "migration:run": "prisma migrate deploy",
         "migration:generate": "npm run dev:load-envs prisma migrate dev",
         "lint": "eslint .",
@@ -88,7 +88,6 @@
         "http-status": "^1.6.2",
         "joi": "^17.9.2",
         "jsonwebtoken": "^9.0.0",
-        "module-alias": "^2.2.3",
         "reflect-metadata": "^0.1.13"
     }
 }
