@@ -15,11 +15,39 @@ export async function getNames(
   }
 }
 
-export async function specificMassAndViscosity(
+export async function calculation(
   req: Request,
   res: Response,
   next: NextFunction
 ) {
+  interface RequestBody {
+    inletPressure: number;
+    ddp: number;
+    flow: number;
+    orificeDiameter: number;
+    pipeDiameter: number;
+    l1: number;
+    l2: number;
+    beta: number;
+    inletTemperature: number;
+    outletTemperature: number;
+    typeFase: string;
+    typeTaps: string;
+    component1: string;
+    component2: string;
+    component3: string;
+    component4: string;
+    component5: string;
+    composition1: number;
+    composition2: number;
+    composition3: number;
+    composition4: number;
+    composition5: number;
+    calculationType: string;
+  }
+
+  const reqBody = req.body as RequestBody;
+
   const {
     inletPressure,
     ddp,
@@ -44,10 +72,10 @@ export async function specificMassAndViscosity(
     composition4,
     composition5,
     calculationType,
-  } = req.body as Record<string, string>;
+  } = reqBody;
 
   try {
-    componentService.orificeCalculation(
+   const result =  await componentService.calculation(
       inletPressure,
       ddp,
       flow,
@@ -72,7 +100,7 @@ export async function specificMassAndViscosity(
       composition5,
       calculationType
     );
-    return res.status(httpStatus.OK).send("Dados recebidos com sucesso");
+    return res.status(httpStatus.OK).send(result);
   } catch (error) {
     next(error);
   }

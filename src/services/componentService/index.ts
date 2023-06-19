@@ -6,17 +6,17 @@ async function getNames(): Promise<NameObject[]> {
   return nameObjects;
 }
 
-async function orificeCalculation(
-  inletPressure: string,
-  ddp: string,
-  flow: string,
-  orificeDiameter: string,
-  pipeDiameter: string,
-  l1: string,
-  l2: string,
-  beta: string,
-  inletTemperature: string,
-  outletTemperature: string,
+async function calculation(
+  inletPressure: number,
+  ddp: number,
+  flow: number,
+  orificeDiameter: number,
+  pipeDiameter: number,
+  l1: number,
+  l2: number,
+  beta: number,
+  inletTemperature: number,
+  outletTemperature: number,
   typeFase: string,
   typeTaps: string,
   component1: string,
@@ -24,26 +24,32 @@ async function orificeCalculation(
   component3: string,
   component4: string,
   component5: string,
-  composition1: string,
-  composition2: string,
-  composition3: string,
-  composition4: string,
-  composition5: string,
+  composition1: number,
+  composition2: number,
+  composition3: number,
+  composition4: number,
+  composition5: number,
   calculationType: string
 ) {
   const InletTemperature = Number(inletTemperature) + 273.15;
   const OutletTemperature = Number(outletTemperature) + 273.15;
-  const InletPressure = Number(inletPressure) * 101325;
-  const PressureDifference = Number(ddp) * 248.84;
-  const OutletPressure = InletPressure - PressureDifference;
-  const InletPressureBar = InletPressure / 100000;
-  const OutletPressureBar = (InletPressure - PressureDifference) / 100000;
+  let InletPressure = Number(inletPressure) * 101325; // in Pascal
+  let PressureDifference = Number(ddp) * 248.84; //in Pascal
+  let OutletPressure = InletPressure - PressureDifference; // in Pascal
+  const InletPressureBar = InletPressure / 100000; // in Bar
+  const OutletPressureBar = (InletPressure - PressureDifference) / 100000; // in Bar
   const Tm = (InletTemperature + OutletTemperature) / 2; // in Kelvin
   const Pm = (InletPressure + OutletPressure) / 2; // in Pascal
   const PmBar = (InletPressureBar + OutletPressureBar) / 2; // in Bar
+  const flowKg = Number(flow) / 3600;
+  const pipeDiameterNum = Number(pipeDiameter);
+  orificeDiameter = Number((beta * pipeDiameterNum).toFixed(4));
   let viscosity;
   let specificMass;
-  let betaCalculation: number;
+  let erro = 0;
+  let pipeVelocity = 0;
+  let pipeReynoldsNumber = 0;
+
   if (typeFase === "Vapor") {
     const resultMassVaporComponent1 =
       await componentRepository.specificMassVapor(component1);
@@ -349,155 +355,291 @@ async function orificeCalculation(
       break;
   }
   switch (calculationType) {
-    case "Orifice":
-      let FB = 0;
-      let pipeVelocity =
-        Number(flow) /
-        ((specificMass * Math.PI * Math.pow(Number(pipeDiameter), 2)) / 4);
-      let PipeReynoldsNumber =
-        (Number(pipeDiameter) * pipeVelocity * specificMass) / viscosity;
-      betaCalculation = 0.5;
-      let erro = 0;
+    case "orifice":
+      let FB;
+      pipeVelocity =
+        flowKg / ((specificMass * Math.PI * pipeDiameterNum ** 2) / 4);
+      pipeReynoldsNumber =
+        (pipeDiameterNum * pipeVelocity * specificMass) / viscosity;
+      let betaCalculation = 0.5;
       do {
-        let orificeDiameter1 = betaCalculation * Number(pipeDiameter);
-        let M2 = (2 * L2) / (1 - betaCalculation); // M2
-        let A = Math.pow((19000 * betaCalculation) / PipeReynoldsNumber, 0.8);
-
+        orificeDiameter = betaCalculation * pipeDiameterNum;
+        let M2 = (2 * L2) / (1 - betaCalculation);
+        let A = ((19000 * betaCalculation) / pipeReynoldsNumber) ** 0.8;
         let dischargeCoefficient;
-        if (Number(pipeDiameter) > 0.07112) {
+        if (pipeDiameter > 0.07112) {
           dischargeCoefficient =
             0.5961 +
-            0.0261 * Math.pow(betaCalculation, 2) -
-            0.216 * Math.pow(betaCalculation, 8) +
-            0.000521 * Math.pow((10 ** 6 * betaCalculation) / PipeReynoldsNumber, 0.7) +
+            0.0261 * betaCalculation ** 2 -
+            0.216 * betaCalculation ** 8 +
+            0.000521 * ((10 ** 6 * betaCalculation) / pipeReynoldsNumber) ** 0.7 +
             (0.0188 + 0.0063 * A) *
-              Math.pow(betaCalculation, 3.5) *
-              Math.pow(10 ** 6 / PipeReynoldsNumber, 0.3) +
+              betaCalculation ** 3.5 *
+              (10 ** 6 / pipeReynoldsNumber) ** 0.3 +
             (0.043 +
-              0.08 * Math.pow(Math.E, -10 * L1) -
-              0.123 * Math.pow(Math.E, -7 * L1)) *
+              0.08 * Math.E ** (-10 * L1) -
+              0.123 * Math.E ** (-7 * L1)) *
               (1 - 0.11 * A) *
-              (Math.pow(betaCalculation, 4) / (1 - Math.pow(betaCalculation, 4))) -
-            0.031 * (M2 - 0.8 * Math.pow(M2, 1.1)) * Math.pow(betaCalculation, 1.3) +
-            0.011 * (0.75 - betaCalculation) * (2.8 - Number(pipeDiameter) / 25.4);
+              (betaCalculation ** 4 / (1 - betaCalculation ** 4)) -
+            0.031 * (M2 - 0.8 * M2 ** 1.1) * betaCalculation ** 1.3 +
+            0.011 * (0.75 - betaCalculation) * (2.8 - pipeDiameterNum / 25.4);
+        } else {
           dischargeCoefficient =
             0.5961 +
-            0.0261 * Math.pow(betaCalculation, 2) -
-            0.216 * Math.pow(betaCalculation, 8) +
-            0.000521 * Math.pow((10 ** 6 * betaCalculation) / PipeReynoldsNumber, 0.7) +
+            0.0261 * betaCalculation ** 2 -
+            0.216 * betaCalculation ** 8 +
+            0.000521 * ((10 ** 6 * betaCalculation) / pipeReynoldsNumber) ** 0.7 +
             (0.0188 + 0.0063 * A) *
-              Math.pow(betaCalculation, 3.5) *
-              Math.pow(10 ** 6 / PipeReynoldsNumber, 0.3) +
+              betaCalculation ** 3.5 *
+              (10 ** 6 / pipeReynoldsNumber) ** 0.3 +
             (0.043 +
-              0.08 * Math.pow(Math.E, -10 * L1) -
-              0.123 * Math.pow(Math.E, -7 * L1)) *
+              0.08 * Math.E ** (-10 * L1) -
+              0.123 * Math.E ** (-7 * L1)) *
               (1 - 0.11 * A) *
-              (Math.pow(betaCalculation, 4) / (1 - Math.pow(betaCalculation, 4))) -
-            0.031 * (M2 - 0.8 * Math.pow(M2, 1.1)) * Math.pow(betaCalculation, 1.3);
+              (betaCalculation ** 4 / (1 - betaCalculation ** 4)) -
+            0.031 * (M2 - 0.8 * M2 ** 1.1) * betaCalculation ** 1.3;
         }
-
-        let pressureDropCoefficient = Math.pow(
-          (1 - Math.pow(betaCalculation, 4) * (1 - Math.pow(dischargeCoefficient, 2))) **
-            0.5 /
-            (dischargeCoefficient * Math.pow(betaCalculation, 2)) -
-            1,
-          2
-        );
+        let pressureDropCoefficient =
+          ((1 - betaCalculation ** 4 * (1 - dischargeCoefficient ** 2)) ** 0.5 /
+            (dischargeCoefficient * betaCalculation ** 2) -
+            1) **
+          2;
         let expansionFactor =
           1 -
-          (0.351 + 0.256 * Math.pow(betaCalculation, 4) + 0.93 * Math.pow(betaCalculation, 8)) *
+          (0.351 + 0.256 * betaCalculation ** 4 + 0.93 * betaCalculation ** 8) *
             (1 -
-              Math.pow(
-                OutletPressure / InletPressure,
-                1 / pressureDropCoefficient
-              ));
-
+              (OutletPressure / InletPressure) **
+                (1 / pressureDropCoefficient));
         FB =
-          Number(flow) -
-          (dischargeCoefficient / Math.pow(1 - Math.pow(betaCalculation, 4), 0.5)) *
+          flowKg -
+          (dischargeCoefficient / (1 - (betaCalculation ** 4) ** 0.5)) *
             expansionFactor *
             (Math.PI / 4) *
-            Math.pow(orificeDiameter1, 2) *
-            Math.pow(2 * PressureDifference * specificMass, 0.5);
+            orificeDiameter ** 2 *
+            (2 * PressureDifference * specificMass) ** 0.5;
 
-        // Derivada
-        let db = 0.0001;
-        let bdb = betaCalculation + db;
+        //_______________________________________________________________________________________________________________________________________
+        //Derivada
 
-        let orificeDiameter1L = bdb * Number(pipeDiameter);
-        let M2L = (2 * L2) / (1 - bdb);
-        let AL = Math.pow((19000 * bdb) / PipeReynoldsNumber, 0.8);
+        let betaDerivate = 0.0001;
+
+        let betaDerivedBeta = beta + betaDerivate;
+        let orificeDiameterL = betaDerivedBeta * pipeDiameter;
+        let M2L = (2 * L2) / (1 - betaDerivedBeta);
+        let AL = ((19000 * betaDerivedBeta) / pipeReynoldsNumber) ** 0.8;
 
         let dischargeCoefficientL;
-        if (Number(pipeDiameter) > 0.07112) {
+        if (pipeDiameter > 0.07112) {
           dischargeCoefficientL =
             0.5961 +
-            0.0261 * Math.pow(bdb, 2) -
-            0.216 * Math.pow(bdb, 8) +
-            0.000521 * Math.pow((10 ** 6 * bdb) / PipeReynoldsNumber, 0.7) +
+            0.0261 * betaDerivedBeta ** 2 -
+            0.216 * betaDerivedBeta ** 8 +
+            0.000521 *
+              ((10 ** 6 * betaDerivedBeta) / pipeReynoldsNumber) ** 0.7 +
             (0.0188 + 0.0063 * AL) *
-              Math.pow(bdb, 3.5) *
-              Math.pow(10 ** 6 / PipeReynoldsNumber, 0.3) +
+              betaDerivedBeta ** 3.5 *
+              (10 ** 6 / pipeReynoldsNumber) ** 0.3 +
             (0.043 +
-              0.08 * Math.pow(Math.E, -10 * L1) -
-              0.123 * Math.pow(Math.E, -7 * L1)) *
+              0.08 * Math.E ** (-10 * L1) -
+              0.123 * Math.E ** (-7 * L1)) *
               (1 - 0.11 * AL) *
-              (Math.pow(bdb, 4) / (1 - Math.pow(bdb, 4))) -
-            0.031 * (M2L - 0.8 * Math.pow(M2L, 1.1)) * Math.pow(bdb, 1.3) +
-            0.011 * (0.75 - bdb) * (2.8 - Number(pipeDiameter) / 25.4);
+              (betaDerivedBeta ** 4 / (1 - betaDerivedBeta ** 4)) -
+            0.031 * (M2L - 0.8 * M2L ** 1.1) * betaDerivedBeta ** 1.3 +
+            0.011 * (0.75 - betaDerivedBeta) * (2.8 - pipeDiameterNum / 25.4);
         } else {
           dischargeCoefficientL =
             0.5961 +
-            0.0261 * Math.pow(bdb, 2) -
-            0.216 * Math.pow(bdb, 8) +
-            0.000521 * Math.pow((10 ** 6 * bdb) / PipeReynoldsNumber, 0.7) +
+            0.0261 * betaDerivedBeta ** 2 -
+            0.216 * betaDerivedBeta ** 8 +
+            0.000521 *
+              ((10 ** 6 * betaDerivedBeta) / pipeReynoldsNumber) ** 0.7 +
             (0.0188 + 0.0063 * AL) *
-              Math.pow(bdb, 3.5) *
-              Math.pow(10 ** 6 / PipeReynoldsNumber, 0.3) +
+              betaDerivedBeta ** 3.5 *
+              (10 ** 6 / pipeReynoldsNumber) ** 0.3 +
             (0.043 +
-              0.08 * Math.pow(Math.E, -10 * L1) -
-              0.123 * Math.pow(Math.E, -7 * L1)) *
+              0.08 * Math.E ** (-10 * L1) -
+              0.123 * Math.E ** (-7 * L1)) *
               (1 - 0.11 * AL) *
-              (Math.pow(bdb, 4) / (1 - Math.pow(bdb, 4))) -
-            0.031 * (M2L - 0.8 * Math.pow(M2L, 1.1)) * Math.pow(bdb, 1.3);
+              (betaDerivedBeta ** 4 / (1 - betaDerivedBeta ** 4)) -
+            0.031 * (M2L - 0.8 * M2L ** 1.1) * betaDerivedBeta ** 1.3;
         }
-
-        let pressureDropCoefficientL = Math.pow(
-          (1 - Math.pow(bdb, 4) * (1 - Math.pow(dischargeCoefficientL, 2))) **
+        let pressureDropCoefficientL =
+          ((1 - betaDerivedBeta ** 4 * (1 - dischargeCoefficientL ** 2)) **
             0.5 /
-            (dischargeCoefficientL * Math.pow(bdb, 2)) -
-            1,
-          2
-        );
+            (dischargeCoefficientL * betaDerivedBeta ** 2) -
+            1) **
+          2;
         let expansionFactorL =
           1 -
-          (0.351 + 0.256 * Math.pow(bdb, 4) + 0.93 * Math.pow(bdb, 8)) *
+          (0.351 + 0.256 * betaDerivedBeta ** 4 + 0.93 * betaDerivedBeta ** 8) *
             (1 -
-              Math.pow(
-                OutletPressure / InletPressure,
-                1 / pressureDropCoefficientL
-              ));
-
-        let fbdb =
-          Number(flow) -
-          (dischargeCoefficientL / Math.pow(1 - Math.pow(bdb, 4), 0.5)) *
+              (OutletPressure / InletPressure) **
+                (1 / pressureDropCoefficientL));
+        let fBetaDerivedBeta =
+          flowKg -
+          (dischargeCoefficientL / (1 - (betaDerivedBeta ** 4) ** 0.5)) *
             expansionFactorL *
             (Math.PI / 4) *
-            Math.pow(orificeDiameter1L, 2) *
-            Math.pow(2 * PressureDifference * specificMass, 0.5);
+            orificeDiameterL ** 2 *
+            (2 * PressureDifference * specificMass) ** 0.5;
+        let fbL = (fBetaDerivedBeta - FB) / betaDerivate;
+        let betaC = betaCalculation - FB / fbL;
+        erro = Math.abs((betaC - betaCalculation) / betaC);
+        betaCalculation = betaC;
+        beta = betaCalculation;
+        orificeDiameter = Number((beta * pipeDiameterNum).toFixed(4));
+        console.log(`erro = ${erro}  beta = ${beta}  d1 = ${orificeDiameter}`)
+      } while (erro != 0);
+      break;
 
-        let fbL = (fbdb - FB) / db;
+    case "flow":
+      orificeDiameter = Number((beta * pipeDiameterNum).toFixed(4));
+      let flowCalculation = 1;
+      do {
+        let pipeVelocity =
+          flowCalculation /
+          ((specificMass * Math.PI * pipeDiameterNum ** 2) / 4);
+        let pipeReynoldsNumber =
+          (pipeDiameterNum * pipeVelocity * specificMass) / viscosity;
+        let M2 = (2 * L2) / (1 - beta);
+        let A = ((19000 * beta) / pipeReynoldsNumber) ** 0.8;
+        let dischargeCoefficient;
+        if (pipeDiameter > 0.07112) {
+          dischargeCoefficient =
+            0.5961 +
+            0.0261 * beta ** 2 -
+            0.216 * beta ** 8 +
+            0.000521 * ((10 ** 6 * beta) / pipeReynoldsNumber) ** 0.7 +
+            (0.0188 + 0.0063 * A) *
+              beta ** 3.5 *
+              (10 ** 6 / pipeReynoldsNumber) ** 0.3 +
+            (0.043 +
+              0.08 * Math.E ** (-10 * L1) -
+              0.123 * Math.E ** (-7 * L1)) *
+              (1 - 0.11 * A) *
+              (beta ** 4 / (1 - beta ** 4)) -
+            0.031 * (M2 - 0.8 * M2 ** 1.1) * beta ** 1.3 +
+            0.011 * (0.75 - beta) * (2.8 - pipeDiameterNum / 25.4);
+        } else {
+          dischargeCoefficient =
+            0.5961 +
+            0.0261 * beta ** 2 -
+            0.216 * beta ** 8 +
+            0.000521 * ((10 ** 6 * beta) / pipeReynoldsNumber) ** 0.7 +
+            (0.0188 + 0.0063 * A) *
+              beta ** 3.5 *
+              (10 ** 6 / pipeReynoldsNumber) ** 0.3 +
+            (0.043 +
+              0.08 * Math.E ** (-10 * L1) -
+              0.123 * Math.E ** (-7 * L1)) *
+              (1 - 0.11 * A) *
+              (beta ** 4 / (1 - beta ** 4)) -
+            0.031 * (M2 - 0.8 * M2 ** 1.1) * beta ** 1.3;
+        }
+        let pressureDropCoefficient =
+          ((1 - beta ** 4 * (1 - dischargeCoefficient ** 2)) ** 0.5 /
+            (dischargeCoefficient * beta ** 2) -
+            1) **
+          2;
+        let expansionFactor =
+          1 -
+          (0.351 + 0.256 * beta ** 4 + 0.93 * beta ** 8) *
+            (1 -
+              (OutletPressure / InletPressure) **
+                (1 / pressureDropCoefficient));
 
-        let betaCalculationC = betaCalculation - FB / fbL;
+        let flowL =
+          (dischargeCoefficient / (1 - beta ** 4) ** 0.5) *
+          expansionFactor *
+          (Math.PI / 4) *
+          orificeDiameter ** 2 *
+          (2 * PressureDifference * specificMass) ** 0.5;
 
-        erro = Math.abs((betaCalculationC - betaCalculation) / betaCalculationC);
+        erro = Math.abs((flowL - flowCalculation) / flowL);
+        console.log(
+          `v = ${pipeVelocity}  Red = ${pipeReynoldsNumber}  A = ${A}  C = ${dischargeCoefficient}  k = ${pressureDropCoefficient}  e = ${expansionFactor}  qL = ${flowL}`
+        );
+        flowCalculation = flowL; // in Kg/h
+        flow = Number((flowCalculation * 3600).toFixed(4));
+        console.log(`erro = ${erro}  flow = ${flow}  d1 = ${orificeDiameter}`)
+      } while (erro != 0);
+      console.log(flow);
+      break;
 
-        betaCalculation = betaCalculationC;
-      } while (erro > 0.0001);
-      console.log("Beta1 " + betaCalculation);
+    case "ddp":
+      orificeDiameter = Number((beta * pipeDiameterNum).toFixed(4));
+      pipeVelocity =
+        flowKg / ((specificMass * Math.PI * pipeDiameterNum ** 2) / 4);
+      pipeReynoldsNumber =
+        (pipeDiameterNum * pipeVelocity * specificMass) / viscosity;
+      OutletPressure = InletPressure - 0.1 * 101325;
+      let pressureDifferenceCalculation;
+      do {
+        let M2 = (2 * L2) / (1 - beta); // M2
+        let A = ((19000 * beta) / pipeReynoldsNumber) ** 0.8;
+        let dischargeCoefficient;
+        if (pipeDiameter > 0.07112) {
+          dischargeCoefficient =
+            0.5961 +
+            0.0261 * beta ** 2 -
+            0.216 * beta ** 8 +
+            0.000521 * ((10 ** 6 * beta) / pipeReynoldsNumber) ** 0.7 +
+            (0.0188 + 0.0063 * A) *
+              beta ** 3.5 *
+              (10 ** 6 / pipeReynoldsNumber) ** 0.3 +
+            (0.043 +
+              0.08 * Math.E ** (-10 * L1) -
+              0.123 * Math.E ** (-7 * L1)) *
+              (1 - 0.11 * A) *
+              (beta ** 4 / (1 - beta ** 4)) -
+            0.031 * (M2 - 0.8 * M2 ** 1.1) * beta ** 1.3 +
+            0.011 * (0.75 - beta) * (2.8 - pipeDiameterNum / 25.4);
+        } else {
+          dischargeCoefficient =
+            0.5961 +
+            0.0261 * beta ** 2 -
+            0.216 * beta ** 8 +
+            0.000521 * ((10 ** 6 * beta) / pipeReynoldsNumber) ** 0.7 +
+            (0.0188 + 0.0063 * A) *
+              beta ** 3.5 *
+              (10 ** 6 / pipeReynoldsNumber) ** 0.3 +
+            (0.043 +
+              0.08 * Math.E ** (-10 * L1) -
+              0.123 * Math.E ** (-7 * L1)) *
+              (1 - 0.11 * A) *
+              (beta ** 4 / (1 - beta ** 4)) -
+            0.031 * (M2 - 0.8 * M2 ** 1.1) * beta ** 1.3;
+        }
+
+        let pressureDropCoefficient =
+          ((1 - beta ** 4 * (1 - dischargeCoefficient ** 2)) ** 0.5 /
+            (dischargeCoefficient * beta ** 2) -
+            1) **
+          2;
+        let expansionFactor =
+          1 -
+          (0.351 + 0.256 * beta ** 4 + 0.93 * beta ** 8) *
+            (1 -
+              (OutletPressure / InletPressure) **
+                (1 / pressureDropCoefficient));
+        pressureDifferenceCalculation =
+          (8 * flowKg ** 2 * (1 - beta ** 4)) /
+          (specificMass *
+            (dischargeCoefficient *
+              expansionFactor *
+              Math.PI *
+              orificeDiameter ** 2) **
+              2);
+
+        let OutletPressureL = InletPressure - pressureDifferenceCalculation;
+        erro = Math.abs((OutletPressureL - OutletPressure) / OutletPressureL);
+        OutletPressure = OutletPressureL;
+        ddp = Number((pressureDifferenceCalculation / 248.84).toFixed(4));
+        console.log(`erro = ${erro}  ddp = ${ddp}  d1 = ${orificeDiameter}`)
+      } while (erro != 0);
       break;
   }
-  console.log("Beta " + betaCalculation);
+  return { ddp, flow, orificeDiameter, beta };
 }
 
 export type NameObject = {
@@ -506,7 +648,7 @@ export type NameObject = {
 
 const componentService = {
   getNames,
-  orificeCalculation,
+  calculation,
 };
 
 export default componentService;
