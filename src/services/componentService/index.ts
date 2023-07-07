@@ -37,7 +37,7 @@ async function calculation(
   let PressureDifference = Number(ddp) * 248.84; //in Pascal
   let OutletPressure = InletPressure - PressureDifference; // in Pascal
   const InletPressureBar = InletPressure / 100000; // in Bar
-  const OutletPressureBar = (InletPressure - PressureDifference) / 100000; // in Bar
+  const OutletPressureBar = InletPressure - PressureDifference; // in Bar
   const Tm = (InletTemperature + OutletTemperature) / 2; // in Kelvin
   const Pm = (InletPressure + OutletPressure) / 2; // in Pascal
   const PmBar = (InletPressureBar + OutletPressureBar) / 2; // in Bar
@@ -372,7 +372,8 @@ async function calculation(
             0.5961 +
             0.0261 * betaCalculation ** 2 -
             0.216 * betaCalculation ** 8 +
-            0.000521 * ((10 ** 6 * betaCalculation) / pipeReynoldsNumber) ** 0.7 +
+            0.000521 *
+              ((10 ** 6 * betaCalculation) / pipeReynoldsNumber) ** 0.7 +
             (0.0188 + 0.0063 * A) *
               betaCalculation ** 3.5 *
               (10 ** 6 / pipeReynoldsNumber) ** 0.3 +
@@ -388,7 +389,8 @@ async function calculation(
             0.5961 +
             0.0261 * betaCalculation ** 2 -
             0.216 * betaCalculation ** 8 +
-            0.000521 * ((10 ** 6 * betaCalculation) / pipeReynoldsNumber) ** 0.7 +
+            0.000521 *
+              ((10 ** 6 * betaCalculation) / pipeReynoldsNumber) ** 0.7 +
             (0.0188 + 0.0063 * A) *
               betaCalculation ** 3.5 *
               (10 ** 6 / pipeReynoldsNumber) ** 0.3 +
@@ -484,11 +486,17 @@ async function calculation(
             (2 * PressureDifference * specificMass) ** 0.5;
         let fbL = (fBetaDerivedBeta - FB) / betaDerivate;
         let betaC = betaCalculation - FB / fbL;
+        console.log(
+          `v = ${pipeVelocity}  Red = ${pipeReynoldsNumber}  d1=${orificeDiameter}  M2 = ${M2}  A = ${A}  C = ${dischargeCoefficient}  k = ${pressureDropCoefficient}  
+        e = ${expansionFactor}  FB = ${FB}  bdb = ${betaDerivedBeta}  d1L =${orificeDiameterL}  M2L = ${M2L}  AL = ${AL}  CL = ${dischargeCoefficientL}  
+        kL=${pressureDropCoefficientL}  eL = ${expansionFactorL}  fbdb = ${fBetaDerivedBeta}  fbL = ${fbL}  betaC = ${betaC}`
+        );
         erro = Math.abs((betaC - betaCalculation) / betaC);
         betaCalculation = betaC;
-        beta = betaCalculation;
+        let beta1 = betaCalculation;
+        beta = Number(beta1.toFixed(4));
         orificeDiameter = Number((beta * pipeDiameterNum).toFixed(4));
-        console.log(`erro = ${erro}  beta = ${beta}  d1 = ${orificeDiameter}`)
+        console.log(`erro = ${erro}  beta = ${beta}  d1 = ${orificeDiameter}`);
       } while (erro != 0);
       break;
 
@@ -557,11 +565,12 @@ async function calculation(
 
         erro = Math.abs((flowL - flowCalculation) / flowL);
         console.log(
-          `v = ${pipeVelocity}  Red = ${pipeReynoldsNumber}  A = ${A}  C = ${dischargeCoefficient}  k = ${pressureDropCoefficient}  e = ${expansionFactor}  qL = ${flowL}`
+          `v = ${pipeVelocity}  Red = ${pipeReynoldsNumber}  M2 = ${M2}  A = ${A}  C = ${dischargeCoefficient}  k = ${pressureDropCoefficient}  e = ${expansionFactor}  
+          qL = ${flowL}`
         );
         flowCalculation = flowL; // in Kg/h
         flow = Number((flowCalculation * 3600).toFixed(4));
-        console.log(`erro = ${erro}  flow = ${flow}  d1 = ${orificeDiameter}`)
+        console.log(`erro = ${erro}  flow = ${flow}  d1 = ${orificeDiameter}`);
       } while (erro != 0);
       console.log(flow);
       break;
@@ -632,10 +641,14 @@ async function calculation(
               2);
 
         let OutletPressureL = InletPressure - pressureDifferenceCalculation;
+        console.log(
+          `d1 = ${orificeDiameter}  v = ${pipeVelocity}  Red = ${pipeReynoldsNumber}  P2 = ${OutletPressure}  M2 = ${M2}  A = ${A}  C = ${dischargeCoefficient}  
+          k = ${pressureDropCoefficient}  e = ${expansionFactor}`
+        );
         erro = Math.abs((OutletPressureL - OutletPressure) / OutletPressureL);
         OutletPressure = OutletPressureL;
         ddp = Number((pressureDifferenceCalculation / 248.84).toFixed(4));
-        console.log(`erro = ${erro}  ddp = ${ddp}  d1 = ${orificeDiameter}`)
+        console.log(`erro = ${erro}  ddp = ${ddp}`);
       } while (erro != 0);
       break;
   }
